@@ -115,7 +115,8 @@ class APP extends React.Component {
 		return <StaggeredMotion
 			defaultStyles={buttonStyles}
 			styles={prevStyles => {
-				return prevStyles.map((style, i) => {
+				let startingStyles = isOpen ? prevStyles : prevStyles.reverse();
+				let newStyles = startingStyles.map((style, i) => {
 					// always start the animation on the first button right away
 					if (i === 0 ) return buttonStyles[i];
 					// for the rest, check if the previous animation is past the midpoint
@@ -124,6 +125,7 @@ class APP extends React.Component {
 					const pastMid = isOpen ? (Math.abs(prevStyles[i - 1].rotate) - currentRotation) < 0 : (Math.abs(prevStyles[i - 1].rotate) - currentRotation) > 0;
 					return pastMid ? buttonStyles[i] : style;
 				})
+				return isOpen ? newStyles : newStyles.reverse();
 			}}
 		>
 			{(interpolatedStyles) => 
