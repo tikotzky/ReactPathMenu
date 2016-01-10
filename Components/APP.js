@@ -1,7 +1,7 @@
 'use strict';
 import React from 'react';
 import ReactDOM from 'react-dom';
-import {Motion, spring} from 'react-motion';
+import {Motion, StaggeredMotion, spring} from 'react-motion';
 import range from 'lodash.range';
 
 // Components 
@@ -50,24 +50,16 @@ class APP extends React.Component {
 		super(props);	
 
 		this.state = {
-			isOpen: false,
-			childButtons: []
+			isOpen: false
 		};
 
 		// Bind this to the functions 
 		this.toggleMenu = this.toggleMenu.bind(this);
 		this.closeMenu = this.closeMenu.bind(this);
-		this.animateChildButtonsWithDelay = this.animateChildButtonsWithDelay.bind(this);
 	}
 
 	componentDidMount() {
 		window.addEventListener('click', this.closeMenu);
-		let childButtons = [];
-		range(NUM_CHILDREN).forEach(index => {
-			childButtons.push(this.renderChildButton(index));
-		});
-
-		this.setState({childButtons: childButtons.slice(0)});
 	}
 
 	mainButtonStyles() {
@@ -108,62 +100,66 @@ class APP extends React.Component {
 		this.setState({
 			isOpen: !isOpen
 		});
-
-		this.animateChildButtonsWithDelay();
 	}
 
 	closeMenu() {
 		this.setState({ isOpen: false});
-		this.animateChildButtonsWithDelay();
 	}
 
-	animateChildButtonsWithDelay() {
-		range(NUM_CHILDREN).forEach((index) => {
-			let {childButtons} = this.state;
-			setTimeout(() => {
-				childButtons[NUM_CHILDREN - index - 1]	= this.renderChildButton(NUM_CHILDREN - index - 1);
-				this.setState({childButtons: childButtons.slice(0)});
-			}, index * 50);
-		});
-	}
-
-	renderChildButton(index) {
+	renderButtons() {
 		let {isOpen} = this.state;
-		let style = isOpen ? this.finalChildButtonStyles(index) : this.initialChildButtonStyles() ;
-		return (
-			<Motion style={style} key={index}>
-				{({width, height, top, left, rotate, scale}) => 
-					<div	
-						className="child-button"
-						style={{
-							width: width,
-							height: height,
-							top: top,
-							left: left,
-							transform: `rotate(${rotate}deg) scale(${scale})`
-						}}>
-						<i className={"fa fa-" + childButtonIcons[index] + " fa-lg"}></i>
-					</div>
-				}
-			</Motion>
-		);
+		let buttonStyles = range(NUM_CHILDREN).map((_, index) => {
+			return isOpen ? this.finalChildButtonStyles(index) : this.initialChildButtonStyles();
+		})
+
+		return <StaggeredMotion
+			defaultStyles={buttonStyles}
+			styles={prevStyles => {
+				return prevStyles.map((style, i) => {
+					// always start the animation on the first button right away
+					if (i === 0 ) return buttonStyles[i];
+					// for the rest, check if the previous animation is past the midpoint
+					// for now i'm just checking if the rotation value passed 90
+					const currentRotation = Math.abs(buttonStyles[i - 1].rotate.val + 90)
+					const pastMid = isOpen ? (Math.abs(prevStyles[i - 1].rotate) - currentRotation) < 0 : (Math.abs(prevStyles[i - 1].rotate) - currentRotation) > 0;
+					return pastMid ? buttonStyles[i] : style;
+				})
+			}}
+		>
+			{(interpolatedStyles) => 
+				<div>
+					{interpolatedStyles.map(({width, height, top, left, rotate, scale}, index) =>
+						<div	
+							key={index}
+							className="child-button"
+							style={{
+								width: width,
+								height: height,
+								top: top,
+								left: left,
+								transform: `rotate(${rotate}deg) scale(${scale})`
+							}}>
+							<i className={"fa fa-" + childButtonIcons[index] + " fa-lg"}></i>
+						</div>
+					)}
+				</div>
+			}
+		</StaggeredMotion>
 	}
 
 	render() {
-		let {isOpen, childButtons} = this.state;
-		let mainButtonRotation = isOpen ? {rotate: spring(0, [500, 30])} : {rotate: spring(-135, [500, 30])};
+		let {isOpen} = this.state;
+		let mainButtonRotation = isOpen ? {rotate: spring(0, [500, 30])} : {rotate: spring(-45, [500, 30])};
 		return (
 			<div>
-				{childButtons.map( (button, index) => {
-					return childButtons[index];
-				})}
+				{this.renderButtons()}
 				<Motion style={mainButtonRotation}>
 					{({rotate}) => 
 						<div 
 							className="main-button"
 							style={{...this.mainButtonStyles(), transform: `rotate(${rotate}deg)`}}
 							onClick={this.toggleMenu}>
-						{/*Using fa-close instead of fa-plus because fa-plus doesn't center properly*/}
+							{/*Using fa-close instead of fa-plus because fa-plus doesn't center properly*/}
 							<i className="fa fa-close fa-3x"/>
 						</div>
 					}
